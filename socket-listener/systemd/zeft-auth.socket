@@ -1,0 +1,8 @@
+[Unit]
+Description=Zeft auth plugin for docker
+
+[Socket]
+ListenStream=/run/docker/plugins/zeft-auth.sock
+
+[Install]
+WantedBy=sockets.target

@@ -1,0 +1,13 @@
+[Unit]
+Description=Zeft auth plugin for docker
+
+Before=docker.service
+After=network.target docker-novolume-plugin.socket
+Requires=zeft-auth.socket docker.service
+
+[Service]
+# might need to set flags...
+ExecStart=/usr/libexec/docker/zeft-auth
+
+[Install]
+WantedBy=multi-user.target
