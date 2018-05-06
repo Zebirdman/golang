@@ -13,8 +13,6 @@ const (
 	name = "dimager"
 )
 
-//testing one tow three
-
 // save current env variables for restoration at end if needed
 var (
 	dockHost     = os.Getenv("DOCKER_HOST")
