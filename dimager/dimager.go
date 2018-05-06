@@ -13,7 +13,7 @@ const (
 	name = "dimager"
 )
 
-//testing
+//testing one tow three
 
 // save current env variables for restoration at end if needed
 var (
