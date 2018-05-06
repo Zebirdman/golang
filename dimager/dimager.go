@@ -13,7 +13,7 @@ const (
 	name = "dimager"
 )
 
-//testing a branch merge
+//testing
 
 // save current env variables for restoration at end if needed
 var (
