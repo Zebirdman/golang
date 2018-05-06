@@ -26,6 +26,14 @@ var (
 	host = &option{"-h", true, "", []string{"-p"}, false}
 	// option for docker cert path when using tls
 	path = &option{"-c", true, "", []string{"-h"}, false}
+	// option for specifying that an image tag prefix should be added
+	addP = &option{"-p", true, "", nil, false}
+	// option to specify that existing image tag prefix will be replaced
+	repP = &option{"-r", true, "", nil, false}
+	// option to specify that the existing image tags be removed after rename
+	clean = &option{"-d", false, "", nil, false}
+	// option for verbose output from operation
+	verb = &option{"-v", false, "", nil, false}
 )
 
 // string array for cycling through arg checks
@@ -36,9 +44,7 @@ func checkArgs(a []string) (*option, error) {
 	var option = none
 	if len(a) > 1 {
 		args := a[1:]
-
 		for index, argValue := range args {
-
 			for _, op := range cmdOptions {
 				// first check name of argument matches an option name
 				if argValue == op.Name {
@@ -53,16 +59,13 @@ func checkArgs(a []string) (*option, error) {
 			}
 		}
 		// if argument doesnt match return and report
-
 		return option, err
-
 	}
 	return option, errors.New("missing operand")
 }
 
 func checkOperand(i int, a []string, o *option) error {
 	var err error
-	//fmt.Printf("Index = %d , Length = %d , Arg = %s\n", i, len(a), a[i])
 	if i+2 > len(a) {
 		err = fmt.Errorf("missing argument")
 		// if net arg is an option then we know the operand is missing

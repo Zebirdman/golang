@@ -12,6 +12,7 @@ import (
 var exMes = "program finished"
 
 func main() {
+	printRunes(os.Args)
 	op, err := checkArgs(os.Args)
 	if help.Enabled == true {
 		helpPage()
@@ -33,24 +34,29 @@ func main() {
 		for _, image := range images {
 
 			for _, tag := range image.RepoTags {
-				fmt.Printf("%s %s 	\n", image.ID, tag)
-				if tag == "eclipse/che:latest" {
+				//fmt.Printf("%s %s 	\n", image.ID, tag)
+				if tag == "test:latest" {
 					ro := types.ImageRemoveOptions{true, false}
-					resp, err := cli.ImageRemove(ctx, tag, ro)
+					_, err := cli.ImageRemove(ctx, tag, ro)
 					if err != nil {
 						panic(err)
 					}
-					for _, r := range resp {
-						fmt.Printf("Deleted = %s\nUntagged = %s\n", r.Deleted, r.Untagged)
-					}
+					//for _, r := range resp {
+					//fmt.Printf("Deleted = %s\nUntagged = %s\n", r.Deleted, r.Untagged)
+					//}
 				}
 			}
 		}
 
-		//err = cli.ImageTag(ctx, "hello-world", "hey/there:1.0")
-		//if err != nil {
-		//	panic(err)
-		//}
 		ctx.Done()
+	}
+}
+
+func printRunes(a []string) {
+	ar := a[1:]
+	for _, arg := range ar {
+		for index, runVal := range arg {
+			fmt.Printf("%#U starts at byte position %d\n", runVal, index)
+		}
 	}
 }
