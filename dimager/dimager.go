@@ -13,6 +13,8 @@ const (
 	name = "dimager"
 )
 
+//testing a branch merge
+
 // save current env variables for restoration at end if needed
 var (
 	dockHost     = os.Getenv("DOCKER_HOST")
