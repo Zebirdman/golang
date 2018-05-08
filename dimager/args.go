@@ -71,7 +71,7 @@ func checkArgs(allArgs []string) (*option, error) {
 				if err != nil {
 					return invalid, fmt.Errorf("unknown command")
 				}
-				// if argument i required check that it is valid
+				// if argument required check that it is valid
 				if valOpt.reqArg {
 					if x+1 != len(argbytes) {
 						valOpt.Operand = string(argbytes[x+1])
@@ -80,6 +80,7 @@ func checkArgs(allArgs []string) (*option, error) {
 					if i+1 == len(a) {
 						return valOpt, fmt.Errorf("requires an argument")
 					}
+					// TODO: need to account fo someone putting in a "" string
 					if nb := []byte(a[i+1]); nb[0] == '-' {
 						valOpt.Operand = string(nb[0])
 						return valOpt, fmt.Errorf("invalid parameter")
@@ -107,37 +108,22 @@ func checkCommand(b byte) (*option, error) {
 
 func showErrors(o *option, e error) {
 	if help.Enabled {
-		helpPage()
-	} else {
-		switch e.Error() {
-		case "missing arguments":
-			fmt.Printf("%s: %s\n", appName, e)
-			fmt.Printf("Try '%s --help' for more information\n", appName)
-			break
-		case "invalid option":
-			fmt.Printf("%s: %s '%s'\n", appName, e, o.Operand)
-			fmt.Printf("Try '%s --help' for more information\n", appName)
-			break
-		case "inappropriate":
-			fmt.Printf("%s: %s '%s'\n", appName, e, o.Operand)
-			fmt.Printf("Try '%s --help' for more information\n", appName)
-			break
-		case "unknown command":
-			fmt.Printf("%s: %s '%s'\n", appName, e, o.Operand)
-			fmt.Printf("Try '%s --help' for more information\n", appName)
-			break
-		case "invalid parameter":
-			fmt.Printf("%s: command '%s' %s '%s'\n", appName, o.Name, e, o.Operand)
-			fmt.Printf("Try '%s --help' for more information\n", appName)
-			break
-		case "requires an argument":
-			fmt.Printf("%s: option '%s' %s\n", appName, o.Name, e)
-			fmt.Printf("Try '%s --help' for more information\n", appName)
-			break
-		}
+		fmt.Printf(appHelpPage)
+		return
 	}
-}
-
-func helpPage() {
-	fmt.Printf(appHelpPage)
+	switch e.Error() {
+	case "missing arguments":
+		fmt.Printf("%s: %s\n", appName, e)
+		break
+	case "invalid parameter":
+		fmt.Printf("%s: command '%s' %s '%s'\n", appName, o.Name, e, o.Operand)
+		break
+	case "requires an argument":
+		fmt.Printf("%s: option '%s' %s\n", appName, o.Name, e)
+		break
+	default:
+		fmt.Printf("%s: %s '%s'\n", appName, e, o.Operand)
+		break
+	}
+	fmt.Printf("Try '%s --help' for more information\n", appName)
 }

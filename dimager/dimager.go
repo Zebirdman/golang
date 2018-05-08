@@ -3,10 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
-
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
+	"os"
+	"strings"
 )
 
 const (
@@ -58,7 +58,7 @@ func assignVariables() {
 	os.Setenv("DOCKER_HOST", host.Operand)
 	os.Setenv("DOCKER_CERT_PATH", path.Operand)
 	newPrefix = addP.Operand
-
+	oldPrefix = repP.Operand
 }
 func main() {
 	initArgs(name, hp)
@@ -74,35 +74,78 @@ func main() {
 		panic(err)
 	}
 	// show enabled options and Arguments
+	fmt.Printf("Enabled arguments:\n")
 	for _, opt := range cmdOptions {
-		fmt.Printf("Enabled arguments:\n")
 		if opt.Enabled {
 			fmt.Printf("Name: %s  Operand: %s\n", opt.Name, opt.Operand)
 		}
 	}
-
 	// get images list
 	images, err := cli.ImageList(context.Background(), types.ImageListOptions{})
 	if err != nil {
 		panic(err)
 	}
-
+	// cycle through images
 	for _, image := range images {
+		// cycle through the tag names not the actual images
+		for _, oTag := range image.RepoTags {
 
-		for _, tag := range image.RepoTags {
-			//fmt.Printf("%s %s 	\n", image.ID, tag)
-			if tag == "test:latest" {
-				ro := types.ImageRemoveOptions{true, false}
-				_, err := cli.ImageRemove(ctx, tag, ro)
+			if addP.Enabled && !repP.Enabled {
+				nt := addPrefix(addP.Operand, oTag)
+				err := cli.ImageTag(ctx, oTag, nt)
 				if err != nil {
-					panic(err)
+					fmt.Printf("%s\n", err)
+					//os.Exit(1)
+				} else {
+					checkClean(ctx, cli, oTag)
 				}
-				//for _, r := range resp {
-				//fmt.Printf("Deleted = %s\nUntagged = %s\n", r.Deleted, r.Untagged)
-				//}
+			}
+
+			if addP.Enabled && repP.Enabled {
+				if pos := strings.IndexRune(oTag, '/'); pos > -1 {
+					rem := strings.SplitAfterN(oTag, "/", 2)
+					if trim(rem[0]) == trim(repP.Operand) {
+						nt := strings.Join([]string{addP.Operand, rem[1]}, "/")
+						fmt.Printf("%s ====> %s\n", oTag, nt)
+						err := cli.ImageTag(ctx, oTag, nt)
+						if err != nil {
+							fmt.Printf("%s\n", err)
+							//os.Exit(1)
+						} else {
+							checkClean(ctx, cli, oTag)
+						}
+					}
+				}
 			}
 		}
 	}
-
 	ctx.Done()
+}
+
+func checkClean(ctx context.Context, cli *client.Client, t string) {
+	// if deletion of old tags is set
+	if clean.Enabled {
+		ro := types.ImageRemoveOptions{true, false}
+		_, err := cli.ImageRemove(ctx, t, ro)
+		if err != nil {
+			fmt.Printf("%s\n", err)
+		} else {
+			fmt.Printf("Old tag %s removed\n", t)
+		}
+	}
+}
+
+// trims the / from the end of a string if it exists
+func trim(s string) string {
+	if pos := strings.IndexRune(s, '/'); pos > -1 {
+		s = strings.Trim(s, "/")
+	}
+	return s
+}
+
+// preappends prefix and returns the new tag
+func addPrefix(p, t string) string {
+	p = trim(p)
+	ar := []string{p, t}
+	return strings.Join(ar, "/")
 }
