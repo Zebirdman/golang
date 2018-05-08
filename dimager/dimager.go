@@ -33,6 +33,10 @@ var (
 	clean = newOption("d", false, nil)
 	// option for verbose output from operation
 	verb = newOption("v", false, nil)
+	// option to remove a existing prefix
+	remove = newOption("x", true, nil)
+
+	debug = false
 
 	hp = `dimager: allows for the easy renaming of docker image tags prefix's
   usefull if we want to retag images to use with a pivate registry
@@ -54,12 +58,6 @@ Arguments:
 `
 )
 
-func assignVariables() {
-	os.Setenv("DOCKER_HOST", host.Operand)
-	os.Setenv("DOCKER_CERT_PATH", path.Operand)
-	newPrefix = addP.Operand
-	oldPrefix = repP.Operand
-}
 func main() {
 	initArgs(name, hp)
 	op, err := checkArgs(os.Args)
@@ -73,32 +71,41 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	// show enabled options and Arguments
-	fmt.Printf("Enabled arguments:\n")
-	for _, opt := range cmdOptions {
-		if opt.Enabled {
-			fmt.Printf("Name: %s  Operand: %s\n", opt.Name, opt.Operand)
+	// TODO: clean up the logic flow at the start
+	if debug {
+		// show enabled options and Arguments
+		fmt.Printf("Enabled arguments:\n")
+		for _, opt := range cmdOptions {
+			if opt.Enabled {
+				fmt.Printf("Name: %s  Operand: %s\n", opt.Name, opt.Operand)
+			}
 		}
 	}
+
+	if remove.Enabled {
+		clean.Enabled = true
+	}
+
 	// get images list
 	images, err := cli.ImageList(context.Background(), types.ImageListOptions{})
 	if err != nil {
 		panic(err)
 	}
+	vOutput("%-50s %-50s", "EXISTING TAG", "NEW TAG")
+	if clean.Enabled {
+		vOutput("DELETE EXISTING")
+	}
+	vOutput("\n")
+
 	// cycle through images
 	for _, image := range images {
 		// cycle through the tag names not the actual images
 		for _, oTag := range image.RepoTags {
 
+			// TODO: optimize this if possible
 			if addP.Enabled && !repP.Enabled {
 				nt := addPrefix(addP.Operand, oTag)
-				err := cli.ImageTag(ctx, oTag, nt)
-				if err != nil {
-					fmt.Printf("%s\n", err)
-					//os.Exit(1)
-				} else {
-					checkClean(ctx, cli, oTag)
-				}
+				processTags(ctx, cli, oTag, nt)
 			}
 
 			if addP.Enabled && repP.Enabled {
@@ -106,14 +113,15 @@ func main() {
 					rem := strings.SplitAfterN(oTag, "/", 2)
 					if trim(rem[0]) == trim(repP.Operand) {
 						nt := strings.Join([]string{addP.Operand, rem[1]}, "/")
-						fmt.Printf("%s ====> %s\n", oTag, nt)
-						err := cli.ImageTag(ctx, oTag, nt)
-						if err != nil {
-							fmt.Printf("%s\n", err)
-							//os.Exit(1)
-						} else {
-							checkClean(ctx, cli, oTag)
-						}
+						processTags(ctx, cli, oTag, nt)
+					}
+				}
+			}
+			if remove.Enabled {
+				if pos := strings.IndexRune(oTag, '/'); pos > -1 {
+					rem := strings.SplitAfterN(oTag, "/", 2)
+					if trim(rem[0]) == trim(remove.Operand) {
+						processTags(ctx, cli, oTag, rem[1])
 					}
 				}
 			}
@@ -122,15 +130,39 @@ func main() {
 	ctx.Done()
 }
 
-func checkClean(ctx context.Context, cli *client.Client, t string) {
-	// if deletion of old tags is set
+func processTags(ctx context.Context, cli *client.Client, t, nt string) {
+	err := cli.ImageTag(ctx, t, nt)
+	if err != nil {
+		fmt.Printf("%s\n", err)
+		return
+	}
+
+	vOutput("%-50s %-50s", t, nt)
 	if clean.Enabled {
 		ro := types.ImageRemoveOptions{true, false}
 		_, err := cli.ImageRemove(ctx, t, ro)
 		if err != nil {
-			fmt.Printf("%s\n", err)
+			fmt.Printf("%s", err)
 		} else {
-			fmt.Printf("Old tag %s removed\n", t)
+			vOutput("succesfull")
+		}
+	}
+	vOutput("\n")
+}
+
+// wraps Printf so info is only displayed when verbose mode enabled
+func vOutput(a string, s ...string) {
+	if verb.Enabled {
+		switch len(s) {
+		case 0:
+			fmt.Printf(a)
+			break
+		case 1:
+			fmt.Printf(a, s[0])
+			break
+		case 2:
+			fmt.Printf(a, s[0], s[1])
+			break
 		}
 	}
 }
@@ -148,4 +180,12 @@ func addPrefix(p, t string) string {
 	p = trim(p)
 	ar := []string{p, t}
 	return strings.Join(ar, "/")
+}
+
+// TODO: set up usage for docker env variables and
+func assignVariables() {
+	os.Setenv("DOCKER_HOST", host.Operand)
+	os.Setenv("DOCKER_CERT_PATH", path.Operand)
+	newPrefix = addP.Operand
+	oldPrefix = repP.Operand
 }
