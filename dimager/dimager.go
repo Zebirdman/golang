@@ -13,13 +13,11 @@ const (
 	name = "dimager"
 )
 
-// save current env variables for restoration at end if needed
 var (
+	// save current env variables for restoration at end if needed
 	dockHost     = os.Getenv("DOCKER_HOST")
 	dockCertPath = os.Getenv("DOCKER_CERT_PATH")
 	dockTLS      = os.Getenv("DOCKER_TLS_VERIFY")
-	newPrefix    string
-	oldPrefix    string
 
 	// option for specifying a docker host
 	host = newOption("h", true, []string{"-p"})
@@ -36,25 +34,26 @@ var (
 	// option to remove a existing prefix
 	remove = newOption("x", true, nil)
 
-	debug = false
-
-	hp = `dimager: allows for the easy renaming of docker image tags prefix's
+	hp = `dim: Docker Image Manager
+	allows for the easy renaming of docker image tags prefix's
   usefull if we want to retag images to use with a pivate registry
   author: Ben Futterleib
 
-Usage: dimager [OPTION]... [-s] SCRIPT_NAME (1st form)
-  or: dimager [OPTION]... [-h] DOCKER_HOST [-p] DOCKER_CERT_PATH (2nd form)
-In the first form specify a path to a script containing exports for the
-  DOCKER_HOST, DOCKER_CERT_PATH, DOCKER_TLS_VERIFY
-environment variables, must be valid executable script
-In the second form pass the DOCKER_HOST and DOCKER_CERT_PATH values using
-  the given flags, DOCKER_TLS_VERIFY will be set automatically
+Usage: dimager [OPTION]... [-h] DOCKER_HOST [-p] DOCKER_CERT_PATH
+Can pass the DOCKER_HOST and DOCKER_CERT_PATH values using
+  the given flags, DOCKER_TLS_VERIFY will be set automatically if certpath
+	is set
 
 Arguments:
-  -h 	specify the connection for the docker host
-  -p 	specify the path to the directory holding the client certs for docker
-  -s 	give a path to a script containing the relevant export env variables
-  --help 	display this help and exit
+  -h 	[DOCKER_HOST] specify the connection for the docker host
+  -c 	[DOCKER_CERT_PATH] specify the path to the directory holding the client
+	  certs for docker
+	-p [NEW PREFIX] tag all images with a new prefix
+	-r [EXISTING TAG]specify a existing tag prefix to replace, designate the new
+	  prefix with the '-d' flag
+	-d set the old tags for deletion so only the newly modified tags are kept
+	-v verbose output
+	-x [PREFIX] specfiy a prefix to remove
 `
 )
 
@@ -66,20 +65,11 @@ func main() {
 		os.Exit(1)
 	}
 	// initialize context and a new client
+	assignVariables()
 	ctx := context.Background()
 	cli, err := client.NewEnvClient()
 	if err != nil {
 		panic(err)
-	}
-	// TODO: clean up the logic flow at the start
-	if debug {
-		// show enabled options and Arguments
-		fmt.Printf("Enabled arguments:\n")
-		for _, opt := range cmdOptions {
-			if opt.Enabled {
-				fmt.Printf("Name: %s  Operand: %s\n", opt.Name, opt.Operand)
-			}
-		}
 	}
 
 	if remove.Enabled {
@@ -91,6 +81,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	// verbose output headers
 	vOutput("%-50s %-50s", "EXISTING TAG", "NEW TAG")
 	if clean.Enabled {
 		vOutput("DELETE EXISTING")
@@ -127,16 +118,17 @@ func main() {
 			}
 		}
 	}
+	restoreVariables()
 	ctx.Done()
 }
 
+// tag the images and clean up old ones if specified
 func processTags(ctx context.Context, cli *client.Client, t, nt string) {
 	err := cli.ImageTag(ctx, t, nt)
 	if err != nil {
 		fmt.Printf("%s\n", err)
 		return
 	}
-
 	vOutput("%-50s %-50s", t, nt)
 	if clean.Enabled {
 		ro := types.ImageRemoveOptions{true, false}
@@ -182,10 +174,20 @@ func addPrefix(p, t string) string {
 	return strings.Join(ar, "/")
 }
 
-// TODO: set up usage for docker env variables and
+// set env variables if option specified
 func assignVariables() {
-	os.Setenv("DOCKER_HOST", host.Operand)
-	os.Setenv("DOCKER_CERT_PATH", path.Operand)
-	newPrefix = addP.Operand
-	oldPrefix = repP.Operand
+	if host.Enabled {
+		os.Setenv("DOCKER_HOST", host.Operand)
+	}
+	if path.Enabled {
+		os.Setenv("DOCKER_CERT_PATH", path.Operand)
+		os.Setenv("DOCKER_TLS_VERIFY", "1")
+	}
+}
+
+// restore the env variables from before
+func restoreVariables() {
+	os.Setenv("DOCKER_HOST", dockHost)
+	os.Setenv("DOCKER_CERT_PATH", dockCertPath)
+	os.Setenv("DOCKER_TLS_VERIFY", dockTLS)
 }

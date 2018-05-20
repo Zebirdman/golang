@@ -25,7 +25,15 @@ var (
 	cmdOptions = make([]*option, 0, 10)
 	// holds the help page string
 	appHelpPage = ""
+	// debug options
+	debug = false
 )
+
+func initArgs(n, h string) {
+	appHelpPage = h
+	appName = n
+	debugArguments()
+}
 
 func newOption(n string, r bool, c []string) *option {
 	no := &option{n, r, "", c, false}
@@ -33,9 +41,16 @@ func newOption(n string, r bool, c []string) *option {
 	return no
 }
 
-func initArgs(n, h string) {
-	appHelpPage = h
-	appName = n
+func debugArguments() {
+	if debug {
+		// show enabled options and Arguments
+		fmt.Printf("Enabled arguments:\n")
+		for _, opt := range cmdOptions {
+			if opt.Enabled {
+				fmt.Printf("Name: %s  Operand: %s\n", opt.Name, opt.Operand)
+			}
+		}
+	}
 }
 
 func needHelp(a []string) bool {
